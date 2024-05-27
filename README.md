@@ -1,19 +1,44 @@
-# docker-gs-ping-roach
- 
-A slightly more advanced Go server/microservice example for [Docker's Go Language Guide](https://docs.docker.com/language/golang/). 
+# Running Statistics API
 
-Notable features:
+This API allows you to manage and retrieve running statistics data.
 
-* Extends the basic example introduced in [olliefr/docker-gs-ping](https://github.com/olliefr/docker-gs-ping).
-* Uses [CockroachDB](https://github.com/cockroachdb/cockroach) database engine.
-* Introduces [Docker Compose](https://docs.docker.com/compose/).
+## Prerequisites
+- Go installed on your machine
+- CockroachDB or PostgreSQL database setup
+- Environment variables:
+    - `PGHOST`: Hostname of the database
+    - `PGPORT`: Port of the database
+    - `PGDATABASE`: Name of the database
+    - `PGUSER`: Database user
+    - `PGPASSWORD`: Database password
+    - `HTTP_PORT`: Port on which the server will run (default: 8080)
 
-## Contributing
+## Installation and Setup
+1. Clone the repository
+2. Set the required environment variables
+3. Build and run the application by executing: `go run main.go`
 
-This was written for an _introduction_ section of the Docker tutorial and as such it favours brevity and pedagogical clarity over robustness. 
+## Endpoints
+- `GET /`: Home route
+- `GET /ping`: Check if the server is running
+- `POST /running_statistics`: Add a new running statistic record
+- `GET /get_running_statistics`: Retrieve all running statistics records
 
-Thus, feedback is welcome, but please no nits or pedantry. Ain't nobody got time for that 🙃
+## API Payload
+### Running Statistics (POST /running_statistics)
+```json
+{
+  "date": "2022-01-01",
+  "distance": "10 km",
+  "time": "50 mins"
+}
 
-## License
+## Response format
+{
+  "message": "Record creation status",
+  "record_created": true
+}
 
-[Apache-2.0 License](LICENSE)
+
+## Acknowledgements
+This API is built using the Echo framework for Go.
