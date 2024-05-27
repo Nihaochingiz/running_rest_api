@@ -7,8 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
-
 	"github.com/cenkalti/backoff/v4"
 	"github.com/cockroachdb/cockroach-go/v2/crdb"
 	"github.com/labstack/echo/v4"
@@ -39,6 +37,9 @@ func main() {
 	e.POST("/running_statistics", func(c echo.Context) error {
 		return sendHandler(db, c)
 	})
+	e.GET("/get_running_statistics", func(c echo.Context) error {
+		return getAllRunningStatistics(c)
+	})
 
 	httpPort := os.Getenv("HTTP_PORT")
 	if httpPort == "" {
@@ -49,9 +50,9 @@ func main() {
 }
 
 type Message struct {
-	Date     time.Time `json:"date"`
-	Distance string    `json:"distance"`
-	Time     string    `json:"time"`
+	Date     string `json:"date"`
+	Distance string `json:"distance"`
+	Time     string `json:"time"`
 }
 
 func initStore() (*sql.DB, error) {
@@ -80,7 +81,7 @@ func initStore() (*sql.DB, error) {
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS running_statistics (
 			id SERIAL PRIMARY KEY,
-			date DATE,
+			date VARCHAR(10),
 			distance VARCHAR(10),
 			time VARCHAR(10),
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -110,7 +111,7 @@ func sendHandler(db *sql.DB, c echo.Context) error {
 
 	err := crdb.ExecuteTx(context.Background(), db, nil, func(tx *sql.Tx) error {
 		result, err := tx.Exec(
-			"INSERT INTO running_statistics (date, distance, time) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+			"INSERT INTO running_statistics (date, distance, time) VALUES ($1, $2, $3)",
 			m.Date, m.Distance, m.Time,
 		)
 		if err != nil {
@@ -151,4 +152,31 @@ func countRecords(db *sql.DB) (int, error) {
 	}
 
 	return count, nil
+}
+
+func getAllRunningStatistics(c echo.Context) error {
+	db, err := initStore()
+	if err != nil {
+		log.Fatalf("failed to initialise the store: %s", err)
+		return c.String(http.StatusInternalServerError, "Failed to connect to the database")
+	}
+	defer db.Close()
+
+	rows, err := db.Query("SELECT date, distance, time FROM running_statistics")
+	if err != nil {
+		return c.String(http.StatusInternalServerError, "Failed to retrieve running statistics")
+	}
+	defer rows.Close()
+
+	var runningStats []Message
+	for rows.Next() {
+		var rs Message
+		err := rows.Scan(&rs.Date, &rs.Distance, &rs.Time)
+		if err != nil {
+			return c.String(http.StatusInternalServerError, "Error scanning running statistics")
+		}
+		runningStats = append(runningStats, rs)
+	}
+
+	return c.JSON(http.StatusOK, runningStats)
 }
